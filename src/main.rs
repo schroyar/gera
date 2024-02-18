@@ -1,5 +1,5 @@
 use clap::{Arg, Command};
-use v4_create2::calc_address;
+use v4_create2::get_salt;
 
 fn main() -> anyhow::Result<()> {
     let matches = Command::new("Prefix")
@@ -28,18 +28,26 @@ fn main() -> anyhow::Result<()> {
         .expect("Failed: initial bits");
 
     let deployer = matches
-        .get_one::<[u8; 20]>("deployer_address")
+        .get_one::<String>("deployer_address")
         .expect("Failed: deployer address");
 
     let contract_bytecode = matches
-        .get_one::<Vec<u8>>("contract_bytecode")
+        .get_one::<String>("contract_bytecode")
         .expect("Failed: contract bytecode");
 
     let into_int = u8::from_str_radix(&bits, 2)?;
 
     let wanted_prefix = hex::encode(&into_int.to_be_bytes());
 
-    let ans = calc_address(wanted_prefix, *deployer, &contract_bytecode);
+    let in_20: [u8; 20] = hex::decode(deployer.clone()).unwrap().try_into().unwrap();
+
+    dbg!(&in_20);
+
+    let ans = get_salt(
+        wanted_prefix.as_bytes(),
+        in_20,
+        &contract_bytecode.as_bytes(),
+    );
 
     match ans {
         Ok(salt) => println!("Salt: {:?}", salt.to_vec()),
