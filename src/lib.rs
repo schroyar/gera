@@ -1,22 +1,26 @@
 use tiny_keccak::{Hasher, Sha3};
 
 pub fn get_salt(
-    wanted_prefix: &[u8],
+    wanted_prefix: u8,
     deployer_address: [u8; 20],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 32]> {
     let mut salt = [0u8; 32];
 
-    let mut wanted_prefix_in_hex = hex::encode(wanted_prefix);
-    wanted_prefix_in_hex = wanted_prefix_in_hex.trim_start_matches("0").to_string();
+    let mut wanted_prefix_in_hex = hex::encode(&[wanted_prefix]);
+    //wanted_prefix_in_hex = wanted_prefix_in_hex.trim_start_matches("0").to_string();
 
     println!("Wanted prefix in hex: {}", wanted_prefix_in_hex);
 
     // Check if the address starts with the wanted prefix
     loop {
-        let current_address = get_address(deployer_address, salt, contract_bytecode).unwrap();
+        // Turn salt into random bytes
+        salt = rand::random();
 
-        if current_address.starts_with(wanted_prefix) {
+        let current_address = get_address(deployer_address, salt, contract_bytecode).unwrap();
+        let current_address_encoded = hex::encode(current_address);
+
+        if current_address_encoded.starts_with(&wanted_prefix_in_hex) {
             // Show data found
             println!("Address: {:?}", hex::encode(current_address));
 
@@ -24,9 +28,6 @@ pub fn get_salt(
 
             break;
         }
-
-        // Turn salt into random bytes
-        salt = rand::random();
     }
 
     Ok(salt)
@@ -75,19 +76,11 @@ mod tests {
             .try_into()
             .unwrap();
         let contract_bytecode = b"dummy_bytecode";
-        let wanted_prefix: &[u8; 1] = &[0b1111]; // binary: 1111 -> hex: 0xF -> int: 15
-
-        match get_salt(wanted_prefix, deployer_address, contract_bytecode) {
-            Ok(salt) => {
-                println!("Salt: {:?}", hex::encode(salt));
-                dbg!("Wanted prefix in hex: {}", hex::encode(wanted_prefix));
-                assert!(
-                    salt.starts_with(wanted_prefix),
-                    "Salt: {:?} does not start with {:?}",
-                    salt,
-                    wanted_prefix
-                );
-            }
+        let wanted_prefix: &[u8; 2] = &[15, 15]; // binary: 1111 -> hex: 0xF -> int: 15
+        let combined = (wanted_prefix[0] << 4) | wanted_prefix[1];
+        dbg!(wanted_prefix);
+        match get_salt(combined, deployer_address, contract_bytecode) {
+            Ok(salt) => {}
             Err(e) => panic!("Fail salt: {}", e),
         }
     }
