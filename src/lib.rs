@@ -1,10 +1,14 @@
 use ethers::utils::keccak256;
+use std::time;
+use colored::Colorize;
 
 pub fn get_salt(
     wanted_prefix: u8,
     deployer_address: [u8; 20],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 32]> {
+    let start = time::Instant::now();
+
     loop {
         let salt: [u8; 32] = rand::random();
 
@@ -12,10 +16,16 @@ pub fn get_salt(
             Ok(current_address) => {
                 if current_address.starts_with(&[wanted_prefix]) {
                     println!(
-                        "Address: {:?}",
+                        "\nAddress: {:?}",
                         format!("0x{}", hex::encode(current_address))
                     );
+
                     println!("Salt that gives us wanted prefix: {:?}", hex::encode(salt));
+
+
+                    let duration = start.elapsed();
+                    println!("\n{} {:?}\n","Time to find salt was:".bold().green(), duration);
+
                     return Ok(salt);
                 }
             }

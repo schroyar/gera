@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 clap = "4.5.1"
+colored = "2.1.0"
 ethers = "2.0.13"
 hex = "0.4.3"
 rand = "0.8.5"
