@@ -5,26 +5,23 @@ pub fn get_salt(
     deployer_address: [u8; 20],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 32]> {
-    let mut salt = [0u8; 32];
-
-    // Check if the address starts with the wanted prefix
     loop {
-        // Turn salt into random bytes
-        salt = rand::random();
+        let salt: [u8; 32] = rand::random();
 
-        let current_address = get_address(deployer_address, salt, contract_bytecode).unwrap();
-
-        if current_address.starts_with(&wanted_prefix.to_be_bytes()) {
-            // Show data found
-            println!("Address: {:?}", hex::encode(current_address));
-
-            println!("Salt: {:?}", hex::encode(salt));
-
-            break;
+        match get_address(deployer_address, salt, contract_bytecode) {
+            Ok(current_address) => {
+                if current_address.starts_with(&[wanted_prefix]) {
+                    println!(
+                        "Address: {:?}",
+                        format!("0x{}", hex::encode(current_address))
+                    );
+                    println!("Salt that gives us wanted prefix: {:?}", hex::encode(salt));
+                    return Ok(salt);
+                }
+            }
+            Err(e) => return Err(e),
         }
     }
-
-    Ok(salt)
 }
 
 fn get_address(
@@ -32,7 +29,8 @@ fn get_address(
     salt: [u8; 32],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 20]> {
-    let mut ans: [u8; 85] = [0; 85];
+    // 1 byte for 0xff (according to the EIP), 20 for address, 32 for salt, 32 for hashed bytecode
+    let mut ans = [0u8; 1 + 20 + 32 + 32];
 
     let hashed_bytecode = keccak256(contract_bytecode);
 
@@ -41,13 +39,11 @@ fn get_address(
     ans[21..53].copy_from_slice(&salt);
     ans[53..85].copy_from_slice(&hashed_bytecode);
 
-    let mut hashed_buf = [0u8; 32];
+    let hashed_buf = keccak256(&ans);
 
-    // Now we hash buf
-    hashed_buf = keccak256(&ans);
-
-    let mut final_address = [0u8; 20];
-    final_address.copy_from_slice(&hashed_buf[12..32]);
+    let final_address: [u8; 20] = hashed_buf[12..32]
+        .try_into()
+        .expect("failed to fit address into array");
 
     Ok(final_address)
 }
