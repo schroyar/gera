@@ -1,4 +1,4 @@
-use tiny_keccak::{Hasher, Sha3};
+use ethers::utils::keccak256;
 
 pub fn get_salt(
     wanted_prefix: u8,
@@ -7,20 +7,14 @@ pub fn get_salt(
 ) -> anyhow::Result<[u8; 32]> {
     let mut salt = [0u8; 32];
 
-    let mut wanted_prefix_in_hex = hex::encode(&[wanted_prefix]);
-    //wanted_prefix_in_hex = wanted_prefix_in_hex.trim_start_matches("0").to_string();
-
-    println!("Wanted prefix in hex: {}", wanted_prefix_in_hex);
-
     // Check if the address starts with the wanted prefix
     loop {
         // Turn salt into random bytes
         salt = rand::random();
 
         let current_address = get_address(deployer_address, salt, contract_bytecode).unwrap();
-        let current_address_encoded = hex::encode(current_address);
 
-        if current_address_encoded.starts_with(&wanted_prefix_in_hex) {
+        if current_address.starts_with(&wanted_prefix.to_be_bytes()) {
             // Show data found
             println!("Address: {:?}", hex::encode(current_address));
 
@@ -38,26 +32,19 @@ fn get_address(
     salt: [u8; 32],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 20]> {
-    let mut hasher = Sha3::v256();
-    let mut hasher2 = Sha3::v256();
-
     let mut ans: [u8; 85] = [0; 85];
 
-    let mut hashed_bytecode: [u8; 32] = [0; 32];
-    let mut hashed_buf: [u8; 32] = [0u8; 32];
-
-    hasher.update(&contract_bytecode);
-
-    hasher.finalize(&mut hashed_bytecode);
+    let hashed_bytecode = keccak256(contract_bytecode);
 
     ans[0] = 0xFF;
     ans[1..21].copy_from_slice(&deployer_address);
     ans[21..53].copy_from_slice(&salt);
     ans[53..85].copy_from_slice(&hashed_bytecode);
 
+    let mut hashed_buf = [0u8; 32];
+
     // Now we hash buf
-    hasher2.update(&ans);
-    hasher2.finalize(&mut hashed_buf);
+    hashed_buf = keccak256(&ans);
 
     let mut final_address = [0u8; 20];
     final_address.copy_from_slice(&hashed_buf[12..32]);
@@ -75,12 +62,12 @@ mod tests {
             .unwrap()
             .try_into()
             .unwrap();
-        let contract_bytecode = b"dummy_bytecode";
-        let wanted_prefix: &[u8; 2] = &[15, 15]; // binary: 1111 -> hex: 0xF -> int: 15
+        let contract_bytecode = b"dummy";
+        let wanted_prefix: &[u8; 2] = &[0b1111, 0b1111]; // binary: 1111 -> hex: 0xF -> int: 15
         let combined = (wanted_prefix[0] << 4) | wanted_prefix[1];
-        dbg!(wanted_prefix);
+
         match get_salt(combined, deployer_address, contract_bytecode) {
-            Ok(salt) => {}
+            Ok(_) => {}
             Err(e) => panic!("Fail salt: {}", e),
         }
     }
