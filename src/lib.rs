@@ -5,16 +5,12 @@ pub fn get_salt(
     deployer_address: [u8; 20],
     contract_bytecode: &[u8],
 ) -> anyhow::Result<[u8; 32]> {
-    let start = time::Instant::now();
-
     loop {
         let salt: [u8; 32] = rand::random();
 
         match get_address(deployer_address, salt, contract_bytecode) {
             Ok(current_address) => {
                 if current_address.starts_with(&[wanted_prefix]) {
-                    let duration = start.elapsed();
-
                     return Ok(salt);
                 }
             }
