@@ -1,6 +1,4 @@
 use ethers::utils::keccak256;
-use std::time;
-use colored::Colorize;
 
 pub fn get_salt(
     wanted_prefix: u8,
@@ -15,16 +13,7 @@ pub fn get_salt(
         match get_address(deployer_address, salt, contract_bytecode) {
             Ok(current_address) => {
                 if current_address.starts_with(&[wanted_prefix]) {
-                    println!(
-                        "\nAddress: {:?}",
-                        format!("0x{}", hex::encode(current_address))
-                    );
-
-                    println!("Salt that gives us wanted prefix: {:?}", hex::encode(salt));
-
-
                     let duration = start.elapsed();
-                    println!("\n{} {:?}\n","Time to find salt was:".bold().green(), duration);
 
                     return Ok(salt);
                 }
